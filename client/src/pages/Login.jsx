@@ -10,12 +10,11 @@ export const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleLogin = async (userEmail, userPassword) => {
     setError('');
     setLoading(true);
     try {
-      const user = await login(email, password);
+      const user = await login(userEmail, userPassword);
       if (user.role === 'FACULTY') {
         navigate('/faculty');
       } else {
@@ -28,25 +27,37 @@ export const Login = () => {
     }
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    handleLogin(email, password);
+  };
+
+  const handleQuickLogin = (demoEmail) => {
+    setEmail(demoEmail);
+    setPassword('Password@123');
+    handleLogin(demoEmail, 'Password@123');
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-2">
-          Academic Tracker
-        </h2>
-        <p className="text-sm text-center text-gray-500 mb-6">
-          Sign in to your account
-        </p>
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+      <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-slate-200 p-8 space-y-6">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-xl mb-3 text-2xl font-black">
+            AT
+          </div>
+          <h2 className="text-2xl font-extrabold text-slate-800">Academic Tracker</h2>
+          <p className="text-sm text-slate-500 mt-1">Faculty Hub & Student Academic Portal</p>
+        </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 text-sm rounded">
+          <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
               Email Address
             </label>
             <input
@@ -54,13 +65,13 @@ export const Login = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="faculty@demo.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
               Password
             </label>
             <input
@@ -68,7 +79,7 @@ export const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="••••••••"
             />
           </div>
@@ -76,18 +87,35 @@ export const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white font-medium py-2 rounded hover:bg-blue-700 transition duration-150 disabled:opacity-50"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow-sm transition disabled:opacity-50"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
 
-        <div className="mt-6 border-t pt-4 text-xs text-gray-500">
-          <p className="font-semibold text-gray-700 mb-1">Demo Credentials:</p>
-          <p>Faculty: <code>faculty@demo.com</code> / <code>Password@123</code></p>
-          <p>Student: <code>student1@demo.com</code> / <code>Password@123</code></p>
+        <div className="pt-4 border-t border-slate-200">
+          <p className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2 text-center">
+            One-Click Demo Access
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('faculty@demo.com')}
+              className="py-2 px-3 text-xs bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold border border-slate-200 rounded-lg flex items-center justify-center gap-1.5 transition"
+            >
+              <span>🎓</span> Faculty Demo
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('student1@demo.com')}
+              className="py-2 px-3 text-xs bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold border border-slate-200 rounded-lg flex items-center justify-center gap-1.5 transition"
+            >
+              <span>🧑‍🎓</span> Student Demo
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
+

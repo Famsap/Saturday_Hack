@@ -1,82 +1,81 @@
 const express = require('express');
-const router = express.Router();
 const auth = require('../middleware/auth');
 const roleGuard = require('../middleware/role');
 
-const notImplemented = (resource) => (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: `Endpoint for ${resource} is scaffolded. Logic pending implementation.`,
-  });
-};
+const sectionController = require('../controllers/sectionController');
+const subjectController = require('../controllers/subjectController');
+const offeringController = require('../controllers/offeringController');
+const studentController = require('../controllers/studentController');
+const sessionController = require('../controllers/sessionController');
+const assessmentController = require('../controllers/assessmentController');
+const meController = require('../controllers/meController');
 
 // Section routes
 const sectionRouter = express.Router();
 sectionRouter.use(auth, roleGuard('FACULTY'));
-sectionRouter.get('/', notImplemented('GET /api/sections'));
-sectionRouter.post('/', notImplemented('POST /api/sections'));
-sectionRouter.get('/:id', notImplemented('GET /api/sections/:id'));
-sectionRouter.put('/:id', notImplemented('PUT /api/sections/:id'));
-sectionRouter.delete('/:id', notImplemented('DELETE /api/sections/:id'));
+sectionRouter.get('/', sectionController.getSections);
+sectionRouter.post('/', sectionController.createSection);
+sectionRouter.get('/:id', sectionController.getSectionById);
+sectionRouter.put('/:id', sectionController.updateSection);
+sectionRouter.delete('/:id', sectionController.deleteSection);
 
 // Subject routes
 const subjectRouter = express.Router();
 subjectRouter.use(auth, roleGuard('FACULTY'));
-subjectRouter.get('/', notImplemented('GET /api/subjects'));
-subjectRouter.post('/', notImplemented('POST /api/subjects'));
-subjectRouter.get('/:id', notImplemented('GET /api/subjects/:id'));
-subjectRouter.put('/:id', notImplemented('PUT /api/subjects/:id'));
-subjectRouter.delete('/:id', notImplemented('DELETE /api/subjects/:id'));
+subjectRouter.get('/', subjectController.getSubjects);
+subjectRouter.post('/', subjectController.createSubject);
+subjectRouter.get('/:id', subjectController.getSubjectById);
+subjectRouter.put('/:id', subjectController.updateSubject);
+subjectRouter.delete('/:id', subjectController.deleteSubject);
 
 // Offering routes
 const offeringRouter = express.Router();
 offeringRouter.use(auth, roleGuard('FACULTY'));
-offeringRouter.get('/', notImplemented('GET /api/offerings'));
-offeringRouter.post('/', notImplemented('POST /api/offerings'));
-offeringRouter.get('/:id', notImplemented('GET /api/offerings/:id'));
-offeringRouter.put('/:id', notImplemented('PUT /api/offerings/:id'));
-offeringRouter.delete('/:id', notImplemented('DELETE /api/offerings/:id'));
-offeringRouter.post('/:id/sessions', notImplemented('POST /api/offerings/:id/sessions'));
-offeringRouter.get('/:id/sessions', notImplemented('GET /api/offerings/:id/sessions'));
-offeringRouter.post('/:id/assessments', notImplemented('POST /api/offerings/:id/assessments'));
-offeringRouter.get('/:id/assessments', notImplemented('GET /api/offerings/:id/assessments'));
-offeringRouter.get('/:id/stats', notImplemented('GET /api/offerings/:id/stats'));
-offeringRouter.get('/:id/at-risk', notImplemented('GET /api/offerings/:id/at-risk'));
+offeringRouter.get('/', offeringController.getOfferings);
+offeringRouter.post('/', offeringController.createOffering);
+offeringRouter.get('/:id', offeringController.getOfferingById);
+offeringRouter.put('/:id', offeringController.updateOffering);
+offeringRouter.delete('/:id', offeringController.deleteOffering);
+offeringRouter.get('/:id/sessions', offeringController.getOfferingSessions);
+offeringRouter.post('/:id/sessions', offeringController.createOfferingSession);
+offeringRouter.get('/:id/assessments', offeringController.getOfferingAssessments);
+offeringRouter.post('/:id/assessments', offeringController.createOfferingAssessment);
+offeringRouter.get('/:id/stats', offeringController.getOfferingStats);
+offeringRouter.get('/:id/at-risk', offeringController.getOfferingAtRisk);
 
 // Student routes
 const studentRouter = express.Router();
 studentRouter.use(auth, roleGuard('FACULTY'));
-studentRouter.get('/', notImplemented('GET /api/students'));
-studentRouter.post('/', notImplemented('POST /api/students'));
-studentRouter.post('/import', notImplemented('POST /api/students/import'));
-studentRouter.get('/:id', notImplemented('GET /api/students/:id'));
-studentRouter.put('/:id', notImplemented('PUT /api/students/:id'));
-studentRouter.delete('/:id', notImplemented('DELETE /api/students/:id'));
-studentRouter.get('/:id/remarks', notImplemented('GET /api/students/:id/remarks'));
-studentRouter.post('/:id/remarks', notImplemented('POST /api/students/:id/remarks'));
-studentRouter.get('/:id/dashboard', notImplemented('GET /api/students/:id/dashboard'));
+studentRouter.get('/', studentController.getStudents);
+studentRouter.post('/', studentController.createStudent);
+studentRouter.post('/import', studentController.importStudents);
+studentRouter.get('/:id', studentController.getStudentById);
+studentRouter.put('/:id', studentController.updateStudent);
+studentRouter.delete('/:id', studentController.deleteStudent);
+studentRouter.get('/:id/remarks', studentController.getStudentRemarks);
+studentRouter.post('/:id/remarks', studentController.createStudentRemark);
 
 // Session attendance & lock routes
 const sessionRouter = express.Router();
 sessionRouter.use(auth, roleGuard('FACULTY'));
-sessionRouter.get('/:sid/sheet', notImplemented('GET /api/sessions/:sid/sheet'));
-sessionRouter.put('/:sid/attendance', notImplemented('PUT /api/sessions/:sid/attendance'));
-sessionRouter.post('/:sid/reopen', notImplemented('POST /api/sessions/:sid/reopen'));
-sessionRouter.put('/:sid/lock', notImplemented('PUT /api/sessions/:sid/lock'));
+sessionRouter.get('/:sid/sheet', sessionController.getSessionSheet);
+sessionRouter.put('/:sid/attendance', sessionController.updateSessionAttendance);
+sessionRouter.put('/:sid/lock', sessionController.lockSession);
+sessionRouter.post('/:sid/reopen', sessionController.reopenSession);
 
 // Assessment marks & publish routes
 const assessmentRouter = express.Router();
 assessmentRouter.use(auth, roleGuard('FACULTY'));
-assessmentRouter.put('/:aid', notImplemented('PUT /api/assessments/:aid'));
-assessmentRouter.delete('/:aid', notImplemented('DELETE /api/assessments/:aid'));
-assessmentRouter.post('/:aid/publish', notImplemented('POST /api/assessments/:aid/publish'));
-assessmentRouter.get('/:aid/marks', notImplemented('GET /api/assessments/:aid/marks'));
-assessmentRouter.put('/:aid/marks', notImplemented('PUT /api/assessments/:aid/marks'));
+assessmentRouter.put('/:aid', assessmentController.updateAssessment);
+assessmentRouter.delete('/:aid', assessmentController.deleteAssessment);
+assessmentRouter.post('/:aid/publish', assessmentController.publishAssessment);
+assessmentRouter.get('/:aid/marks', assessmentController.getAssessmentMarks);
+assessmentRouter.put('/:aid/marks', assessmentController.updateAssessmentMarks);
 
 // Student dashboard me route
 const meRouter = express.Router();
 meRouter.use(auth, roleGuard('STUDENT'));
-meRouter.get('/dashboard', notImplemented('GET /api/me/dashboard'));
+meRouter.get('/dashboard', meController.getStudentDashboard);
 
 module.exports = {
   sectionRouter,
@@ -87,3 +86,4 @@ module.exports = {
   assessmentRouter,
   meRouter,
 };
+

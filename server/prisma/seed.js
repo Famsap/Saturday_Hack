@@ -39,7 +39,7 @@ async function main() {
     },
   });
 
-  // 4. Create Subjects
+  // 4. Create Subjects — CS501 to CS505
   const dbms = await prisma.subject.create({
     data: { code: 'CS501', name: 'Database Management Systems', credits: 4 },
   });
@@ -49,14 +49,22 @@ async function main() {
   const os = await prisma.subject.create({
     data: { code: 'CS503', name: 'Operating Systems', credits: 3 },
   });
+  const networks = await prisma.subject.create({
+    data: { code: 'CS504', name: 'Computer Networks', credits: 4 },
+  });
+  const softwareEngineering = await prisma.subject.create({
+    data: { code: 'CS505', name: 'Software Engineering', credits: 3 },
+  });
 
-  // 5. Create Offering (Faculty -> DBMS in Section A)
+  // 5. Create Offerings (Faculty teaching DBMS, CN, and SE in Section A)
   const dbmsOffering = await prisma.offering.create({
-    data: {
-      subjectId: dbms.id,
-      sectionId: sectionA.id,
-      facultyId: faculty.id,
-    },
+    data: { subjectId: dbms.id, sectionId: sectionA.id, facultyId: faculty.id },
+  });
+  const networksOffering = await prisma.offering.create({
+    data: { subjectId: networks.id, sectionId: sectionA.id, facultyId: faculty.id },
+  });
+  const seOffering = await prisma.offering.create({
+    data: { subjectId: softwareEngineering.id, sectionId: sectionA.id, facultyId: faculty.id },
   });
 
   // 6. Create 10 Students with Users
