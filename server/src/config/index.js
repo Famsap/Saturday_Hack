@@ -1,5 +1,9 @@
+const path = require('path');
 const dotenv = require('dotenv');
+
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 module.exports = {
   PORT: process.env.PORT || 3000,
@@ -13,3 +17,4 @@ module.exports = {
     MARKS_LOW: parseFloat(process.env.MARKS_LOW || '40'),
   }
 };
+
