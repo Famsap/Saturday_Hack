@@ -1,0 +1,47 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: attendance_tracker
+          MYSQL_USER: attendance
+          MYSQL_PASSWORD: attendance_password
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping -h localhost" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm run install:all
+
+      - name: Run Prisma Migrations
+        env:
+          DATABASE_URL: "mysql://attendance:attendance_password@127.0.0.1:3306/attendance_tracker"
+        run: npm run db:migrate
+
+      - name: Run Server Tests
+        run: npm run test --workspace server
+
+      - name: Build Client
+        run: npm run build --workspace client

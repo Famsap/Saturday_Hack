@@ -1,0 +1,180 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  FACULTY
+  STUDENT
+}
+
+enum SessionStatus {
+  OPEN
+  LOCKED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+enum AssessmentType {
+  IA
+  ASSIGNMENT
+  QUIZ
+}
+
+enum AssessmentStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model User {
+  id            Int          @id @default(autoincrement())
+  name          String       @db.VarChar(100)
+  email         String       @unique @db.VarChar(150)
+  passwordHash  String       @map("password_hash") @db.VarChar(255)
+  role          Role
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  offerings     Offering[]   @relation("FacultyOfferings")
+  student       Student?
+  remarksAuthored Remark[]   @relation("RemarkAuthor")
+
+  @@map("users")
+}
+
+model Section {
+  id           Int        @id @default(autoincrement())
+  name         String     @db.VarChar(50)
+  semester     String     @db.VarChar(20)
+  academicYear String     @map("academic_year") @db.VarChar(9)
+
+  students     Student[]
+  offerings    Offering[]
+
+  @@unique([name, semester, academicYear])
+  @@map("sections")
+}
+
+model Student {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @unique @map("user_id")
+  usn        String   @unique @db.VarChar(20)
+  sectionId  Int      @map("section_id")
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section    Section  @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  attendance Attendance[]
+  marks      Marks[]
+  remarks    Remark[]
+
+  @@map("students")
+}
+
+model Subject {
+  id        Int       @id @default(autoincrement())
+  code      String    @unique @db.VarChar(20)
+  name      String    @db.VarChar(100)
+  credits   Int
+
+  offerings Offering[]
+
+  @@map("subjects")
+}
+
+model Offering {
+  id         Int       @id @default(autoincrement())
+  subjectId  Int       @map("subject_id")
+  sectionId  Int       @map("section_id")
+  facultyId  Int       @map("faculty_id")
+
+  subject    Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  section    Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  faculty    User      @relation("FacultyOfferings", fields: [facultyId], references: [id], onDelete: Cascade)
+
+  sessions   ClassSession[]
+  assessments Assessment[]
+  remarks    Remark[]
+
+  @@unique([subjectId, sectionId])
+  @@map("offerings")
+}
+
+model ClassSession {
+  id          Int           @id @default(autoincrement())
+  offeringId  Int           @map("offering_id")
+  sessionDate DateTime      @map("session_date") @db.Date
+  period      Int           @db.TinyInt
+  topic       String?       @db.VarChar(200)
+  status      SessionStatus @default(OPEN)
+
+  offering    Offering      @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  attendance  Attendance[]
+
+  @@unique([offeringId, sessionDate, period])
+  @@map("class_sessions")
+}
+
+model Attendance {
+  id         Int              @id @default(autoincrement())
+  sessionId  Int              @map("session_id")
+  studentId  Int              @map("student_id")
+  status     AttendanceStatus
+
+  session    ClassSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student    Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+  @@map("attendance")
+}
+
+model Assessment {
+  id          Int              @id @default(autoincrement())
+  offeringId  Int              @map("offering_id")
+  title       String           @db.VarChar(150)
+  type        AssessmentType
+  maxMarks    Decimal          @map("max_marks") @db.Decimal(5, 2)
+  conductedOn DateTime         @map("conducted_on") @db.Date
+  status      AssessmentStatus @default(DRAFT)
+
+  offering    Offering         @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  marks       Marks[]
+
+  @@map("assessments")
+}
+
+model Marks {
+  id            Int         @id @default(autoincrement())
+  assessmentId  Int         @map("assessment_id")
+  studentId     Int         @map("student_id")
+  marksObtained Decimal?    @map("marks_obtained") @db.Decimal(5, 2)
+
+  assessment    Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  student       Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, studentId])
+  @@index([studentId])
+  @@map("marks")
+}
+
+model Remark {
+  id         Int      @id @default(autoincrement())
+  studentId  Int      @map("student_id")
+  offeringId Int      @map("offering_id")
+  authorId   Int      @map("author_id")
+  note       String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  offering   Offering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  author     User     @relation("RemarkAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("remarks")
+}
