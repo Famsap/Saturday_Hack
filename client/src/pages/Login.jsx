@@ -10,112 +10,54 @@ export const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = async (userEmail, userPassword) => {
+  async function signIn(userEmail, userPassword) {
     setError('');
     setLoading(true);
     try {
       const user = await login(userEmail, userPassword);
-      if (user.role === 'FACULTY') {
-        navigate('/faculty');
-      } else {
-        navigate('/student');
-      }
+      navigate(user.role === 'FACULTY' ? '/faculty' : '/student');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please check credentials.');
+      setError(err.response?.data?.message || 'Sign in failed. Check your email and password.');
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    handleLogin(email, password);
-  };
-
-  const handleQuickLogin = (demoEmail) => {
-    setEmail(demoEmail);
-    setPassword('Password@123');
-    handleLogin(demoEmail, 'Password@123');
-  };
+  function handleSubmit(event) {
+    event.preventDefault();
+    signIn(email, password);
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-slate-200 p-8 space-y-6">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-xl mb-3 text-2xl font-black">
-            AT
+    <main className="login-screen">
+      <div className="login-decoration login-decoration-top" /><div className="login-decoration login-decoration-bottom" />
+      <section className="login-story">
+        <a className="brand-lockup login-brand" href="/login"><span className="brand-mark">E</span><span>Edu<span className="brand-accent">Sync</span></span></a>
+        <div className="story-content"><span className="eyebrow">A LITTLE MORE IN SYNC</span><h1>Your progress has a place to grow.</h1><p>Bring attendance, academic progress, and the next small step into focus.</p><div className="story-preview"><div className="preview-top"><span>YOUR LEARNING, IN FOCUS</span><span className="preview-dots">•••</span></div><div className="preview-greeting">A great week starts here <span>✦</span></div><div className="preview-bars"><span style={{ height: '44%' }} /><span style={{ height: '73%' }} /><span style={{ height: '58%' }} /><span style={{ height: '86%' }} /><span style={{ height: '68%' }} /><span style={{ height: '100%' }} /><span style={{ height: '78%' }} /></div><div className="preview-bottom"><span>Attendance overview</span><strong>82% <i>↑ 6%</i></strong></div></div></div>
+        <div className="story-footer"><span>Designed for better learning, together.</span><span>REVA HACKATHON · 2026</span></div>
+      </section>
+
+      <section className="login-side">
+        <div className="login-form-wrap">
+          <div className="login-mobile-brand"><span className="brand-mark">E</span><strong>Edu<span className="brand-accent">Sync</span></strong></div>
+          <span className="eyebrow">WELCOME TO EDUSYNC</span><h2>Good to see you.</h2><p className="login-subtitle">Sign in to your learning space.</p>
+          {error && <div className="login-error" role="alert"><span>!</span>{error}</div>}
+          <form onSubmit={handleSubmit} className="login-form">
+            <label htmlFor="email">Email address</label>
+            <div className="login-input-wrap"><span>✉</span><input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="username" placeholder="you@university.edu" /></div>
+            <div className="password-label-row"><label htmlFor="password">Password</label></div>
+            <div className="login-input-wrap"><span>⌑</span><input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" placeholder="Enter your password" /></div>
+            <button type="submit" disabled={loading} className="login-submit">{loading ? 'Signing you in…' : 'Sign in'} <span>→</span></button>
+          </form>
+          <div className="demo-divider"><span /> <small>QUICK DEMO ACCESS</small> <span /></div>
+          <div className="demo-access">
+            <button type="button" onClick={() => { setEmail('faculty@demo.com'); setPassword('Password@123'); signIn('faculty@demo.com', 'Password@123'); }} disabled={loading}><span className="demo-avatar demo-faculty">F</span><span><strong>Faculty demo</strong><small>Explore teaching tools</small></span><b>→</b></button>
+            <button type="button" onClick={() => { setEmail('student1@demo.com'); setPassword('Password@123'); signIn('student1@demo.com', 'Password@123'); }} disabled={loading}><span className="demo-avatar demo-student">S</span><span><strong>Student demo</strong><small>Explore the student view</small></span><b>→</b></button>
           </div>
-          <h2 className="text-2xl font-extrabold text-slate-800">Academic Tracker</h2>
-          <p className="text-sm text-slate-500 mt-1">Faculty Hub & Student Academic Portal</p>
+          <p className="login-note"><span>✦</span> Your academic data stays within your learning space.</p>
         </div>
-
-        {error && (
-          <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="faculty@demo.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow-sm transition disabled:opacity-50"
-          >
-            {loading ? 'Authenticating...' : 'Sign In'}
-          </button>
-        </form>
-
-        <div className="pt-4 border-t border-slate-200">
-          <p className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2 text-center">
-            One-Click Demo Access
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('faculty@demo.com')}
-              className="py-2 px-3 text-xs bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold border border-slate-200 rounded-lg flex items-center justify-center gap-1.5 transition"
-            >
-              <span>🎓</span> Faculty Demo
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('student1@demo.com')}
-              className="py-2 px-3 text-xs bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold border border-slate-200 rounded-lg flex items-center justify-center gap-1.5 transition"
-            >
-              <span>🧑‍🎓</span> Student Demo
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+        <footer className="login-mobile-footer">Designed for better learning, together.</footer>
+      </section>
+    </main>
   );
 };
-

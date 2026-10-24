@@ -8,10 +8,13 @@ export const InsightsTab = ({ offeringId }) => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [remarkText, setRemarkText] = useState('');
   const [submittingRemark, setSubmittingRemark] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const [search, setSearch] = useState('');
 
   const fetchAtRisk = async () => {
     try {
       setLoading(true);
+      setError(null);
       const res = await api.get(`/api/offerings/${offeringId}/at-risk`);
       setAtRiskList(res.data.data || []);
     } catch (err) {
@@ -30,86 +33,94 @@ export const InsightsTab = ({ offeringId }) => {
     if (!remarkText.trim() || !selectedStudent) return;
     try {
       setSubmittingRemark(true);
+      setFeedback('');
       await api.post(`/api/students/${selectedStudent.student.id}/remarks`, {
         offeringId: Number(offeringId),
         note: remarkText.trim(),
       });
-      alert('Counseling remark saved!');
+      setFeedback(`Note added for ${selectedStudent.student.name}.`);
       setRemarkText('');
       setSelectedStudent(null);
       fetchAtRisk();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to add remark');
+      setFeedback(err.response?.data?.message || 'Failed to add remark.');
     } finally {
       setSubmittingRemark(false);
     }
   };
 
+  const visibleStudents = atRiskList.filter((item) => (
+    `${item.student.name} ${item.student.usn} ${item.student.email}`.toLowerCase().includes(search.trim().toLowerCase())
+  ));
+  const criticalCount = atRiskList.filter((item) => item.alerts.some((alert) => alert.severity === 'CRITICAL')).length;
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 insight-workspace">
+      <div className="insight-heading">
         <div>
-          <h2 className="text-lg font-bold text-gray-800">Insights & Intervention Engine</h2>
-          <p className="text-xs text-gray-500">Automated alerts identifying students needing academic and attendance intervention.</p>
+          <span className="eyebrow">EARLY SUPPORT, MADE THOUGHTFUL</span>
+          <h2 className="text-lg font-bold text-gray-800">Class insights</h2>
+          <p className="text-xs text-gray-500">A timely, personal check-in can make a real difference.</p>
         </div>
-        <button onClick={fetchAtRisk} className="text-xs text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded hover:bg-blue-100 font-medium">
-          🔄 Refresh
+        <button onClick={fetchAtRisk} disabled={loading} className="insight-refresh">
+          <span>↻</span> {loading ? 'Updating…' : 'Refresh insights'}
         </button>
       </div>
+      {!loading && !error && <div className="insight-summary">
+        <div><span className="insight-summary-icon">♧</span><span><strong>{atRiskList.length}</strong><small>Learners flagged</small></span></div>
+        <div><span className="insight-summary-icon insight-summary-urgent">!</span><span><strong>{criticalCount}</strong><small>Priority check-ins</small></span></div>
+        <label className="management-search insight-search"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a student..." aria-label="Find a student" /></label>
+      </div>}
+      {feedback && <div className={`management-alert ${feedback.includes('Failed') ? 'management-alert-error' : 'management-alert-success'}`} role="status">{feedback}</div>}
 
       {loading ? (
         <div className="p-8 text-center text-gray-500">Analyzing student performance & attendance...</div>
       ) : error ? (
         <div className="p-4 bg-red-50 text-red-600 rounded">{error}</div>
       ) : atRiskList.length === 0 ? (
-        <div className="p-12 bg-white rounded-lg border text-center space-y-2">
-          <div className="text-4xl">🎉</div>
-          <h3 className="text-base font-bold text-emerald-800">No Students At Risk!</h3>
-          <p className="text-xs text-gray-500">All students are currently meeting attendance and assessment requirements.</p>
+        <div className="insight-empty">
+          <span>✦</span>
+          <h3>Everyone is on track</h3>
+          <p>No academic alerts right now. Keep encouraging your students to show up, ask questions, and keep learning.</p>
         </div>
+      ) : visibleStudents.length === 0 ? (
+        <div className="insight-empty"><span>⌕</span><h3>No students found</h3><p>Try another name, email, or university number.</p></div>
       ) : (
-        <div className="space-y-4">
-          {atRiskList.map((item) => (
-            <div key={item.student.id} className="bg-white rounded-lg border shadow-sm p-5 space-y-4">
-              <div className="flex justify-between items-start">
+        <div className="insight-student-list">
+          {visibleStudents.map((item) => (
+            <div key={item.student.id} className="insight-student-card">
+              <div className="insight-student-heading">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded font-semibold">{item.student.usn}</span>
-                    <h3 className="font-bold text-gray-800">{item.student.name}</h3>
+                  <div className="insight-student-identity">
+                    <span className="avatar avatar-lilac">{(item.student.name || 'S').charAt(0).toUpperCase()}</span>
+                    <span><span className="management-usn">{item.student.usn}</span><h3>{item.student.name}</h3></span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">{item.student.email}</p>
+                  <p className="insight-student-email">{item.student.email}</p>
                 </div>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="text-right">
-                    <span className="text-xs text-gray-400 block">Attendance</span>
-                    <span className={`font-bold ${item.attendancePct < 75 ? 'text-red-600' : 'text-emerald-600'}`}>{item.attendancePct}%</span>
-                    {item.classesNeeded > 0 && <span className="text-xs text-amber-600 ml-1">(+{item.classesNeeded} cls)</span>}
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs text-gray-400 block">Performance</span>
-                    <span className={`font-bold ${item.performancePct < 40 ? 'text-red-600' : 'text-blue-600'}`}>{item.performancePct}%</span>
-                  </div>
-                  <button onClick={() => setSelectedStudent(item)} className="text-xs bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1.5 rounded font-semibold hover:bg-amber-100">
-                    + Remark
-                  </button>
-                </div>
+                <button onClick={() => { setFeedback(''); setSelectedStudent(item); }} className="insight-remark-button"><span>＋</span> Add a note</button>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="insight-stats">
+                <div><span>ATTENDANCE</span><strong className={item.attendancePct < 75 ? 'insight-warn' : ''}>{item.attendancePct}%</strong>{item.classesNeeded > 0 && <small>{item.classesNeeded} classes to reach 75%</small>}</div>
+                <div><span>ASSESSMENT PERFORMANCE</span><strong className={item.performancePct < 40 ? 'insight-warn' : ''}>{item.performancePct}%</strong><small>Across published marks</small></div>
+                <div><span>ACADEMIC SIGNALS</span><strong>{item.alerts.length}</strong><small>Items to discuss</small></div>
+              </div>
+              <div className="insight-alert-list">
                 {item.alerts.map((alt, idx) => (
-                  <div key={idx} className={`text-xs p-2.5 rounded border-l-4 ${alt.severity === 'CRITICAL' ? 'bg-red-50 border-red-500 text-red-800' : 'bg-amber-50 border-amber-500 text-amber-800'}`}>
-                    <span className="font-semibold uppercase mr-1">[{alt.type.replace('_', ' ')}]</span>
+                  <div key={idx} className={`insight-alert ${alt.severity === 'CRITICAL' ? 'insight-alert-critical' : ''}`}>
+                    <span className="insight-alert-mark">{alt.severity === 'CRITICAL' ? '!' : 'i'}</span><span><strong>{alt.type.replaceAll('_', ' ')}</strong>
                     {alt.message}
+                    </span>
                   </div>
                 ))}
               </div>
 
               {item.remarks && item.remarks.length > 0 && (
-                <div className="border-t pt-3 space-y-1.5">
-                  <p className="text-xs font-semibold text-gray-500 uppercase">Counseling Notes</p>
+                <div className="insight-notes">
+                  <p>FACULTY NOTES</p>
                   {item.remarks.map((rem) => (
-                    <div key={rem.id} className="text-xs bg-gray-50 p-2 rounded border text-gray-700">
-                      <div className="flex justify-between text-gray-400 text-[10px] mb-1">
+                    <div key={rem.id} className="insight-note">
+                      <div>
                         <span>{rem.author?.name || 'Faculty'}</span>
                         <span>{new Date(rem.createdAt).toLocaleDateString()}</span>
                       </div>
@@ -124,17 +135,15 @@ export const InsightsTab = ({ offeringId }) => {
       )}
 
       {selectedStudent && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-bold text-gray-800">Add Counseling Remark · {selectedStudent.student.name}</h3>
-            <form onSubmit={handleAddRemark} className="space-y-3">
-              <textarea rows="4" placeholder="Enter counseling note..." value={remarkText} onChange={(e) => setRemarkText(e.target.value)} className="w-full border rounded p-2.5 text-sm" required />
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setSelectedStudent(null)} className="px-4 py-1.5 rounded text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
-                <button type="submit" disabled={submittingRemark} className="px-4 py-1.5 rounded text-sm bg-amber-600 text-white font-semibold hover:bg-amber-700">{submittingRemark ? 'Saving...' : 'Save'}</button>
-              </div>
+        <div className="management-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !submittingRemark) setSelectedStudent(null); }}>
+          <section className="management-modal" role="dialog" aria-modal="true" aria-labelledby="remark-modal-title">
+            <button className="management-modal-close" onClick={() => setSelectedStudent(null)} disabled={submittingRemark} aria-label="Close dialog">×</button>
+            <span className="eyebrow">A PERSONAL CHECK-IN</span><h3 id="remark-modal-title">Add a faculty note</h3><p>This private academic note will be visible to {selectedStudent.student.name} in their dashboard.</p>
+            <form onSubmit={handleAddRemark} className="management-form">
+              <label>Note for {selectedStudent.student.name}<textarea rows="5" placeholder="Share a supportive, actionable next step…" value={remarkText} onChange={(e) => setRemarkText(e.target.value)} required /></label>
+              <div className="management-modal-actions"><button type="button" className="button button-secondary" onClick={() => setSelectedStudent(null)} disabled={submittingRemark}>Cancel</button><button type="submit" disabled={submittingRemark} className="button button-primary">{submittingRemark ? 'Saving…' : 'Save note'}</button></div>
             </form>
-          </div>
+          </section>
         </div>
       )}
     </div>

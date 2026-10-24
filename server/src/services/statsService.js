@@ -6,12 +6,17 @@ const calculateAttendanceStats = (attendanceRecords, totalLockedSessions) => {
   if (!totalLockedSessions || totalLockedSessions === 0) {
     return {
       attendedCount: 0,
+      presentCount: 0,
+      lateCount: 0,
+      absentCount: 0,
       totalSessions: 0,
       percentage: 100.0,
       classesNeeded: 0,
     };
   }
 
+  const presentCount = attendanceRecords.filter((record) => record.status === 'PRESENT').length;
+  const lateCount = attendanceRecords.filter((record) => record.status === 'LATE').length;
   const attendedCount = attendanceRecords.filter(
     (record) => record.status === 'PRESENT' || record.status === 'LATE'
   ).length;
@@ -23,6 +28,9 @@ const calculateAttendanceStats = (attendanceRecords, totalLockedSessions) => {
 
   return {
     attendedCount,
+    presentCount,
+    lateCount,
+    absentCount: Math.max(0, totalLockedSessions - presentCount - lateCount),
     totalSessions: totalLockedSessions,
     percentage,
     classesNeeded,

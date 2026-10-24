@@ -89,122 +89,42 @@ async function main() {
     students.push(student);
   }
 
-  // 7. Create Class Sessions (2 LOCKED sessions, 1 OPEN)
-  const session1 = await prisma.classSession.create({
-    data: {
-      offeringId: dbmsOffering.id,
-      sessionDate: new Date('2026-10-01'),
-      period: 1,
-      topic: 'Introduction to Relational Databases',
-      status: 'LOCKED',
-    },
+  // ── DBMS: Sessions, Attendance, Assessments, Marks, Remark ──
+  const dbS1 = await prisma.classSession.create({
+    data: { offeringId: dbmsOffering.id, sessionDate: new Date('2026-10-01'), period: 1, topic: 'Introduction to Relational Databases', status: 'LOCKED' },
   });
-
-  const session2 = await prisma.classSession.create({
-    data: {
-      offeringId: dbmsOffering.id,
-      sessionDate: new Date('2026-10-03'),
-      period: 2,
-      topic: 'ER Modeling and Normalization',
-      status: 'LOCKED',
-    },
+  const dbS2 = await prisma.classSession.create({
+    data: { offeringId: dbmsOffering.id, sessionDate: new Date('2026-10-03'), period: 2, topic: 'ER Modeling and Normalization', status: 'LOCKED' },
   });
-
   await prisma.classSession.create({
-    data: {
-      offeringId: dbmsOffering.id,
-      sessionDate: new Date('2026-10-05'),
-      period: 1,
-      topic: 'SQL DDL and DML Basics',
-      status: 'OPEN',
-    },
+    data: { offeringId: dbmsOffering.id, sessionDate: new Date('2026-10-05'), period: 1, topic: 'SQL DDL and DML Basics', status: 'OPEN' },
   });
-
-  // 8. Record Attendance for the 2 locked sessions
-  for (const student of students) {
-    // Session 1: All present
-    await prisma.attendance.create({
-      data: {
-        sessionId: session1.id,
-        studentId: student.id,
-        status: 'PRESENT',
-      },
-    });
-
-    // Session 2: student 1 & 2 are ABSENT, others PRESENT
-    await prisma.attendance.create({
-      data: {
-        sessionId: session2.id,
-        studentId: student.id,
-        status: student.id <= students[1].id ? 'ABSENT' : 'PRESENT',
-      },
-    });
+  for (const s of students) {
+    await prisma.attendance.create({ data: { sessionId: dbS1.id, studentId: s.id, status: 'PRESENT' } });
+    await prisma.attendance.create({ data: { sessionId: dbS2.id, studentId: s.id, status: s.id <= students[1].id ? 'ABSENT' : 'PRESENT' } });
   }
-
-  // 9. Create Assessments: 2 PUBLISHED, 1 DRAFT
-  const ia1 = await prisma.assessment.create({
-    data: {
-      offeringId: dbmsOffering.id,
-      title: 'Internal Assessment 1',
-      type: 'IA',
-      maxMarks: 20,
-      conductedOn: new Date('2026-10-10'),
-      status: 'PUBLISHED',
-    },
+  const dbIA1 = await prisma.assessment.create({
+    data: { offeringId: dbmsOffering.id, title: 'Internal Assessment 1', type: 'IA', maxMarks: 20, conductedOn: new Date('2026-10-10'), status: 'PUBLISHED' },
   });
-
-  const assignment1 = await prisma.assessment.create({
-    data: {
-      offeringId: dbmsOffering.id,
-      title: 'Assignment 1 - Schema Design',
-      type: 'ASSIGNMENT',
-      maxMarks: 10,
-      conductedOn: new Date('2026-10-15'),
-      status: 'PUBLISHED',
-    },
+  const dbA1 = await prisma.assessment.create({
+    data: { offeringId: dbmsOffering.id, title: 'Assignment 1 - Schema Design', type: 'ASSIGNMENT', maxMarks: 10, conductedOn: new Date('2026-10-15'), status: 'PUBLISHED' },
   });
-
   await prisma.assessment.create({
-    data: {
-      offeringId: dbmsOffering.id,
-      title: 'Internal Assessment 2',
-      type: 'IA',
-      maxMarks: 20,
-      conductedOn: new Date('2026-10-25'),
-      status: 'DRAFT',
-    },
+    data: { offeringId: dbmsOffering.id, title: 'Internal Assessment 2', type: 'IA', maxMarks: 20, conductedOn: new Date('2026-10-25'), status: 'DRAFT' },
   });
-
-  // 10. Record Marks for published assessments
-  for (const student of students) {
-    await prisma.marks.create({
-      data: {
-        assessmentId: ia1.id,
-        studentId: student.id,
-        marksObtained: student.id === students[0].id ? 8 : 17, // student 1 gets low marks
-      },
-    });
-
-    await prisma.marks.create({
-      data: {
-        assessmentId: assignment1.id,
-        studentId: student.id,
-        marksObtained: 9,
-      },
-    });
+  for (const s of students) {
+    await prisma.marks.create({ data: { assessmentId: dbIA1.id, studentId: s.id, marksObtained: s.id === students[0].id ? 8 : 17 } });
+    await prisma.marks.create({ data: { assessmentId: dbA1.id, studentId: s.id, marksObtained: 9 } });
   }
-
-  // 11. Add a demo Remark
   await prisma.remark.create({
-    data: {
-      studentId: students[0].id,
-      offeringId: dbmsOffering.id,
-      authorId: faculty.id,
-      note: 'Counselled regarding low attendance and IA-1 performance. Needs improvement in upcoming assessments.',
-    },
+    data: { studentId: students[0].id, offeringId: dbmsOffering.id, authorId: faculty.id, note: 'Counselled regarding low attendance and IA-1 performance. Needs improvement in upcoming assessments.' },
   });
 
-  console.log('Seeding completed successfully!');
+  // ── CN + SE seeded via helper functions below ──
+  await seedCN(networksOffering, students, faculty);
+  await seedSE(seOffering, students, faculty);
+
+  console.log('✅ Seeding completed! 5 subjects (CS501–CS505), 3 offerings with full data');
 }
 
 main()

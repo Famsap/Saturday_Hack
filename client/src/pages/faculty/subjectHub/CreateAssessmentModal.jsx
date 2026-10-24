@@ -1,37 +1,45 @@
 import React, { useState } from 'react';
 import api from '../../../api/axiosInstance';
 
-export const CreateAssessmentModal = ({ offeringId, onClose, onCreated }) => {
-  const [title, setTitle] = useState('');
-  const [type, setType] = useState('IA');
-  const [maxMarks, setMaxMarks] = useState(25);
-  const [conductedOn, setConductedOn] = useState(new Date().toISOString().split('T')[0]);
+export const CreateAssessmentModal = ({ offeringId, assessment = null, onClose, onCreated }) => {
+  const [title, setTitle] = useState(assessment?.title || '');
+  const [type, setType] = useState(assessment?.type || 'IA');
+  const [maxMarks, setMaxMarks] = useState(assessment?.maxMarks ?? 25);
+  const [conductedOn, setConductedOn] = useState(assessment?.conductedOn ? new Date(assessment.conductedOn).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setSubmitting(true);
-      await api.post(`/api/offerings/${offeringId}/assessments`, {
-        title,
+      setError('');
+      const payload = {
+        title: title.trim(),
         type,
         maxMarks: Number(maxMarks),
         conductedOn,
-      });
+      };
+      if (assessment) await api.put(`/api/assessments/${assessment.id}`, payload);
+      else await api.post(`/api/offerings/${offeringId}/assessments`, payload);
       onCreated();
       onClose();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create assessment');
+      setError(err.response?.data?.message || 'Failed to save assessment');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl space-y-4">
-        <h3 className="text-base font-bold text-gray-800">New Assessment</h3>
-        <form onSubmit={handleSubmit} className="space-y-3">
+    <div className="management-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !submitting) onClose(); }}>
+      <div className="management-modal" role="dialog" aria-modal="true" aria-labelledby="assessment-modal-title">
+        <button className="management-modal-close" onClick={onClose} disabled={submitting} aria-label="Close dialog">×</button>
+        <span className="eyebrow">ASSESSMENT CYCLE</span>
+        <h3 id="assessment-modal-title">{assessment ? 'Edit draft assessment' : 'Create an assessment'}</h3>
+        <p>Set up the assessment. You can enter marks and publish them when they’re ready.</p>
+        {error && <div className="management-alert management-alert-error" role="alert">{error}</div>}
+        <form onSubmit={handleSubmit} className="management-form">
           <div>
             <label className="text-xs font-semibold text-gray-600 block mb-1">Title</label>
             <input
@@ -78,20 +86,10 @@ export const CreateAssessmentModal = ({ offeringId, onClose, onCreated }) => {
               required
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-1.5 rounded text-sm text-gray-600 hover:bg-gray-100"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-1.5 rounded text-sm bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
-            >
-              {submitting ? 'Creating...' : 'Create Assessment'}
+          <div className="management-modal-actions">
+            <button type="button" onClick={onClose} disabled={submitting} className="button button-secondary">Cancel</button>
+            <button type="submit" disabled={submitting} className="button button-primary">
+              {submitting ? 'Saving…' : assessment ? 'Save changes' : 'Create assessment'}
             </button>
           </div>
         </form>

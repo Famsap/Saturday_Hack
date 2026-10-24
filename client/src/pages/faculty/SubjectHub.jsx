@@ -12,122 +12,81 @@ export const SubjectHub = () => {
   const [offering, setOffering] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const fetchOfferingData = async () => {
-    try {
-      setLoading(true);
-      const [offeringRes, statsRes] = await Promise.all([
-        api.get(`/api/offerings/${id}`),
-        api.get(`/api/offerings/${id}/stats`),
-      ]);
-      setOffering(offeringRes.data.data);
-      setStats(statsRes.data.data);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load subject offering details');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [error, setError] = useState('');
 
   useEffect(() => {
+    let current = true;
+    async function fetchOfferingData() {
+      try {
+        setLoading(true);
+        setError('');
+        const [offeringRes, statsRes] = await Promise.all([
+          api.get(`/api/offerings/${id}`),
+          api.get(`/api/offerings/${id}/stats`),
+        ]);
+        if (current) {
+          setOffering(offeringRes.data.data);
+          setStats(statsRes.data.data);
+        }
+      } catch (err) {
+        if (current) setError(err.response?.data?.message || 'Failed to load subject details.');
+      } finally {
+        if (current) setLoading(false);
+      }
+    }
     if (id) fetchOfferingData();
+    return () => { current = false; };
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-500">
-        Loading Subject Hub...
-      </div>
-    );
+  if (loading) return <div className="app-loading"><span className="loading-orbit" />Loading your subject workspace…</div>;
+  if (error || !offering) {
+    return <div className="app-loading app-error"><div className="load-error-card"><span className="brand-mark">E</span><h1>Subject unavailable</h1><p>{error || 'This subject offering could not be found.'}</p><Link className="button button-primary" to="/faculty">Back to your subjects</Link></div></div>;
   }
 
-  if (error || !offering) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-8 flex flex-col items-center justify-center">
-        <p className="text-red-600 mb-4">{error || 'Offering not found.'}</p>
-        <Link to="/faculty" className="text-sm bg-blue-600 text-white px-4 py-2 rounded">
-          Back to My Subjects
-        </Link>
-      </div>
-    );
-  }
+  const tabs = [
+    { key: 'overview', label: 'Overview', icon: '◫' },
+    { key: 'sessions', label: 'Sessions', count: stats?.totalSessions ?? 0, icon: '◷' },
+    { key: 'assessments', label: 'Assessments', count: stats?.totalAssessments ?? 0, icon: '▤' },
+    { key: 'insights', label: 'Insights', count: stats?.atRiskCount || null, icon: '✳' },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm">
-        <div>
-          <Link to="/faculty" className="text-xs text-blue-600 hover:underline mb-1 inline-block">
-            ← Back to My Subjects
-          </Link>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-bold px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded">
-              {offering.subject?.code}
-            </span>
-            <h1 className="text-xl font-bold text-gray-800">
-              {offering.subject?.name}
-            </h1>
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-              {offering.section?.name} · {offering.section?.semester}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Link
-            to="/faculty/setup"
-            className="text-xs text-gray-600 hover:text-gray-900 bg-gray-100 px-3 py-1.5 rounded"
-          >
-            Term Setup
-          </Link>
-        </div>
-      </header>
-
-      {/* Tabs */}
-      <div className="bg-white border-b px-6 shadow-xs">
-        <nav className="flex space-x-6 text-sm font-medium">
-          {[
-            { key: 'overview', label: 'Overview' },
-            { key: 'sessions', label: `Sessions (${stats?.totalSessions ?? 0})` },
-            { key: 'assessments', label: `Assessments (${stats?.totalAssessments ?? 0})` },
-            {
-              key: 'insights',
-              label: (
-                <span className="flex items-center gap-1.5">
-                  Insights & At-Risk
-                  {stats?.atRiskCount > 0 && (
-                    <span className="text-xs px-1.5 py-0.2 bg-red-100 text-red-700 rounded-full font-bold">
-                      {stats.atRiskCount}
-                    </span>
-                  )}
-                </span>
-              ),
-            },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`py-3.5 border-b-2 transition ${
-                activeTab === tab.key
-                  ? 'border-blue-600 text-blue-600 font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+    <div className="edu-app faculty-app">
+      <aside className="sidebar">
+        <a className="brand-lockup" href="/faculty" onClick={(event) => event.preventDefault()}>
+          <span className="brand-mark">E</span><span>Edu<span className="brand-accent">Sync</span><small>FACULTY PORTAL</small></span>
+        </a>
+        <div className="side-section-label">TEACHING SPACE</div>
+        <nav className="side-nav" aria-label="Faculty navigation">
+          <Link className="side-link side-link-active" to="/faculty"><span className="side-link-icon">◫</span>My subjects</Link>
+          <Link className="side-link" to="/faculty/setup"><span className="side-link-icon">▦</span>Term setup</Link>
         </nav>
-      </div>
+        <div className="sidebar-spacer" />
+        <div className="sidebar-coach faculty-sidebar-tip"><span className="coach-sparkle">✳</span><strong>Little check-ins go a long way.</strong><p>Keep a pulse on attendance and give students a timely nudge.</p><button onClick={() => setActiveTab('insights')}>Review class insights <span>↗</span></button></div>
+        <div className="sidebar-profile"><span className="avatar avatar-lilac">{(offering.faculty?.name || 'F').charAt(0).toUpperCase()}</span><span className="profile-copy"><strong>{offering.faculty?.name || 'Faculty'}</strong><small>Faculty account</small></span></div>
+      </aside>
 
-      <main className="flex-1 p-6 max-w-6xl mx-auto w-full">
-        {activeTab === 'overview' && (
-          <OverviewTab offering={offering} stats={stats} onNavigateTab={setActiveTab} />
-        )}
-        {activeTab === 'sessions' && <SessionsTab offeringId={id} />}
-        {activeTab === 'assessments' && <AssessmentsTab offeringId={id} />}
-        {activeTab === 'insights' && <InsightsTab offeringId={id} />}
+      <main className="main-panel">
+        <header className="topbar"><div className="breadcrumb"><Link to="/faculty">My subjects</Link><b>/</b><strong>{offering.subject?.code}</strong></div><div className="topbar-right"><Link className="setup-back-link" to="/faculty/setup">Term setup ↗</Link></div></header>
+        <div className="page-content">
+          <section className="subject-hero"><div><span className="eyebrow">{offering.section?.academicYear || 'CURRENT TERM'} · {offering.section?.semester || 'SUBJECT WORKSPACE'}</span><div className="subject-hero-title"><span className="subject-code">{offering.subject?.code}</span><h1>{offering.subject?.name}</h1></div><p>{offering.section?.name} <span>·</span> {offering.subject?.credits} credits <span>·</span> {stats?.totalStudents ?? offering.section?.students?.length ?? 0} students</p></div><span className="subject-hero-mark" aria-hidden="true">✳</span></section>
+
+          <nav className="subject-tabs" aria-label="Subject workspace">
+            {tabs.map((tab) => (
+              <button key={tab.key} className={`subject-tab ${activeTab === tab.key ? 'subject-tab-active' : ''}`} onClick={() => setActiveTab(tab.key)} aria-current={activeTab === tab.key ? 'page' : undefined}>
+                <span>{tab.icon}</span>{tab.label}{tab.count !== undefined && <small className={tab.key === 'insights' && tab.count > 0 ? 'subject-tab-alert' : ''}>{String(tab.count ?? 0).padStart(2, '0')}</small>}
+              </button>
+            ))}
+          </nav>
+
+          <section className="subject-workspace-content">
+            {activeTab === 'overview' && <OverviewTab offering={offering} stats={stats} onNavigateTab={setActiveTab} />}
+            {activeTab === 'sessions' && <SessionsTab offeringId={id} />}
+            {activeTab === 'assessments' && <AssessmentsTab offeringId={id} />}
+            {activeTab === 'insights' && <InsightsTab offeringId={id} />}
+          </section>
+        </div>
       </main>
     </div>
   );
 };
-

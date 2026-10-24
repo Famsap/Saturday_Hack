@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../../api/axiosInstance';
 
 export const OfferingsTab = () => {
@@ -6,130 +7,104 @@ export const OfferingsTab = () => {
   const [sections, setSections] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [showModal, setShowModal] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [search, setSearch] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedSectionId, setSelectedSectionId] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const fetchData = async () => {
+  async function fetchData() {
     try {
       setLoading(true);
-      const [offRes, secRes, subRes] = await Promise.all([
+      setError('');
+      const [offeringResponse, sectionResponse, subjectResponse] = await Promise.all([
         api.get('/api/offerings'),
         api.get('/api/sections'),
         api.get('/api/subjects'),
       ]);
-      setOfferings(offRes.data.data || []);
-      setSections(secRes.data.data || []);
-      setSubjects(subRes.data.data || []);
-      if (subRes.data.data?.length > 0) setSelectedSubjectId(subRes.data.data[0].id);
-      if (secRes.data.data?.length > 0) setSelectedSectionId(secRes.data.data[0].id);
+      setOfferings(offeringResponse.data.data || []);
+      setSections(sectionResponse.data.data || []);
+      setSubjects(subjectResponse.data.data || []);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch offerings data');
+      setError(err.response?.data?.message || 'Failed to load offering data.');
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
+  const filteredOfferings = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return term ? offerings.filter((offering) => `${offering.subject?.code} ${offering.subject?.name} ${offering.section?.name} ${offering.section?.semester}`.toLowerCase().includes(term)) : offerings;
+  }, [offerings, search]);
+
+  function openForm(offering = null) {
+    setFormOpen(true);
+    setEditing(offering);
+    setSelectedSubjectId(String(offering?.subjectId ?? subjects[0]?.id ?? ''));
+    setSelectedSectionId(String(offering?.sectionId ?? sections[0]?.id ?? ''));
+    setError('');
+    setNotice('');
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
     if (!selectedSubjectId || !selectedSectionId) return;
+    setSaving(true);
+    setError('');
     try {
-      setSaving(true);
-      await api.post('/api/offerings', {
-        subjectId: Number(selectedSubjectId),
-        sectionId: Number(selectedSectionId),
-      });
-      setShowModal(false);
-      fetchData();
+      const payload = { subjectId: Number(selectedSubjectId), sectionId: Number(selectedSectionId) };
+      if (editing) await api.put(`/api/offerings/${editing.id}`, payload);
+      else await api.post('/api/offerings', payload);
+      setFormOpen(false);
+      setEditing(null);
+      setNotice(editing ? 'Subject offering updated.' : 'Subject assigned to the selected section.');
+      await fetchData();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create subject offering');
+      setError(err.response?.data?.message || 'Could not save this offering.');
     } finally {
       setSaving(false);
     }
-  };
+  }
+
+  async function deleteOffering(offering) {
+    if (!window.confirm(`Remove ${offering.subject?.code} from ${offering.section?.name}? Its sessions and assessments will also be removed.`)) return;
+    setError('');
+    setNotice('');
+    try {
+      await api.delete(`/api/offerings/${offering.id}`);
+      setNotice('Offering removed from this term.');
+      await fetchData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not remove this offering.');
+    }
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-base font-bold text-gray-800">Faculty Subject Offerings</h2>
-          <p className="text-xs text-gray-500">Course instances assigned to sections for active tracking.</p>
-        </div>
-        <button onClick={() => setShowModal(true)} className="text-xs bg-blue-600 text-white px-3.5 py-1.5 rounded font-medium hover:bg-blue-700">
-          + Create Offering
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="p-8 text-center text-gray-500 text-sm">Loading offerings...</div>
-      ) : error ? (
-        <div className="p-4 bg-red-50 text-red-600 text-sm rounded">{error}</div>
-      ) : (
-        <div className="bg-white rounded-lg border overflow-hidden">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 border-b text-xs text-gray-500 uppercase">
-              <tr>
-                <th className="px-4 py-3">Subject</th>
-                <th className="px-4 py-3">Section</th>
-                <th className="px-4 py-3 text-center">Students</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y text-gray-700">
-              {offerings.length === 0 ? (
-                <tr><td colSpan="3" className="px-4 py-6 text-center text-gray-400">No offerings found.</td></tr>
-              ) : (
-                offerings.map((o) => (
-                  <tr key={o.id} className="hover:bg-gray-50/50">
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-gray-900">{o.subject?.name}</div>
-                      <div className="text-xs text-blue-600 font-mono">{o.subject?.code}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-800">{o.section?.name}</div>
-                      <div className="text-xs text-gray-400">{o.section?.semester}</div>
-                    </td>
-                    <td className="px-4 py-3 text-center text-xs font-semibold">
-                      {o.section?._count?.students ?? 0}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-sm w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-bold text-gray-800">Assign Subject Offering</h3>
-            <form onSubmit={handleCreate} className="space-y-3 text-sm">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Subject</label>
-                <select value={selectedSubjectId} onChange={(e) => setSelectedSubjectId(e.target.value)} className="w-full border rounded px-3 py-1.5" required>
-                  {subjects.map((sub) => (<option key={sub.id} value={sub.id}>{sub.code} - {sub.name}</option>))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Section</label>
-                <select value={selectedSectionId} onChange={(e) => setSelectedSectionId(e.target.value)} className="w-full border rounded px-3 py-1.5" required>
-                  {sections.map((sec) => (<option key={sec.id} value={sec.id}>{sec.name} ({sec.semester})</option>))}
-                </select>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                <button type="submit" disabled={saving} className="px-4 py-1.5 bg-blue-600 text-white rounded font-medium hover:bg-blue-700">{saving ? 'Saving...' : 'Assign Offering'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+    <div className="management-content">
+      <div className="management-heading"><div><span className="eyebrow">TEACHING ASSIGNMENTS</span><h2>Subject offerings</h2><p>Pair courses with cohorts to bring your term plan to life.</p></div><button className="button button-primary" onClick={() => openForm()} disabled={!subjects.length || !sections.length}><span>＋</span> Create offering</button></div>
+      <div className="management-toolbar"><label className="management-search"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search subjects or sections..." aria-label="Search offerings" /></label><span className="management-result">{filteredOfferings.length} {filteredOfferings.length === 1 ? 'offering' : 'offerings'}</span></div>
+      {error && !formOpen && <div className="management-alert management-alert-error" role="alert">{error}<button onClick={fetchData}>Try again</button></div>}
+      {notice && !formOpen && <div className="management-alert management-alert-success" role="status">{notice}</div>}
+      {!loading && (!subjects.length || !sections.length) && <div className="management-alert management-alert-info">Create at least one subject and one section before assigning an offering.</div>}
+      {loading ? <div className="management-empty"><span className="loading-orbit" />Loading offerings…</div> : !error && <div className="management-table-wrap"><table className="management-table">
+        <thead><tr><th>Subject</th><th>Section</th><th>Students</th><th>Attendance</th><th><span className="sr-only">Actions</span></th></tr></thead>
+        <tbody>{filteredOfferings.map((offering) => <tr key={offering.id}>
+          <td><span className="subject-code">{offering.subject?.code}</span><span className="management-primary management-subject-name">{offering.subject?.name}</span></td>
+          <td><span className="management-primary">{offering.section?.name}</span><span className="management-secondary">{offering.section?.semester} · {offering.section?.academicYear}</span></td>
+          <td><span className="management-count">{offering.section?._count?.students ?? offering.stats?.totalStudents ?? 0} learners</span></td>
+          <td><span className={`management-count ${Number(offering.stats?.attendanceAvg) < 75 ? 'management-count-warn' : ''}`}>{Math.round(Number(offering.stats?.attendanceAvg) || 0)}%</span></td>
+          <td><div className="management-actions"><Link to={`/faculty/offerings/${offering.id}`}>Open</Link><button onClick={() => openForm(offering)} aria-label={`Edit ${offering.subject?.code} offering`}>Edit</button><button className="management-delete" onClick={() => deleteOffering(offering)} aria-label={`Delete ${offering.subject?.code} offering`}>Delete</button></div></td>
+        </tr>)}</tbody>
+      </table>{filteredOfferings.length === 0 && <div className="management-empty">{offerings.length ? 'No offerings match your search.' : 'No subject offerings yet. Assign a course to a section to get started.'}</div>}</div>}
+      {formOpen && <div className="management-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setFormOpen(false); }}><section className="management-modal" role="dialog" aria-modal="true" aria-labelledby="offering-modal-title"><button className="management-modal-close" onClick={() => setFormOpen(false)} disabled={saving} aria-label="Close dialog">×</button><span className="eyebrow">TEACHING ASSIGNMENT</span><h3 id="offering-modal-title">{editing ? 'Edit offering' : 'Create an offering'}</h3><p>Choose the course and cohort for this subject workspace.</p>
+        {error && <div className="management-alert management-alert-error" role="alert">{error}</div>}
+        <form onSubmit={handleSubmit} className="management-form"><label>Subject<select value={selectedSubjectId} onChange={(event) => setSelectedSubjectId(event.target.value)} required><option value="" disabled>Select a subject</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.code} · {subject.name}</option>)}</select></label><label>Section<select value={selectedSectionId} onChange={(event) => setSelectedSectionId(event.target.value)} required><option value="" disabled>Select a section</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.name} · {section.semester}</option>)}</select></label><div className="management-modal-actions"><button type="button" className="button button-secondary" onClick={() => setFormOpen(false)} disabled={saving}>Cancel</button><button type="submit" className="button button-primary" disabled={saving || !subjects.length || !sections.length}>{saving ? 'Saving…' : editing ? 'Save changes' : 'Create offering'}</button></div></form>
+      </section></div>}
     </div>
   );
 };

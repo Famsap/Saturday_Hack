@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Student Attendance and Academic Performance Tracker** is a web application that enables faculty to record attendance, manage internal assessment marks, and provide students with dashboards to monitor their academic progress. The platform follows a **React (Vite) + Node.js/Express** stack with **MySQL 8** using **Prisma ORM**.
+**EduSync** helps faculty manage academic terms, class attendance, and assessments, while students can track their progress and get personalized study guidance. It uses **React (Vite) + Node.js/Express** with **MySQL 8** through **Prisma ORM**.
 
 ## Tech Stack
 
@@ -68,8 +68,12 @@ attendance-tracker/
 ## Environment Variables
 See `.env.example` files in `client/` and `server/` for required variables (API URLs, JWT secret, MySQL connection string, thresholds, etc.).
 
+The study coach provides progress-based guidance using live academic data. To enable AI-generated replies, set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`) in `server/.env`. Students must explicitly opt in to share an anonymous progress snapshot for each AI-generated reply; without a configured key or opt-in, the coach responds locally.
+
 ## Documentation
 All design docs are in the `docs/` folder:
+- [EduSync Project and Database Guide (PDF)](docs/EduSync-Project-and-Database-Guide.pdf) — beginner-friendly walkthrough of application operations and the MySQL data model.
+- [Editable guide source](docs/EDUSYNC-PROJECT-AND-DATABASE-GUIDE.md)
 - `REQUIREMENTS.md`
 - `WORKFLOW.md`
 - `ARCHITECTURE.md`
@@ -90,8 +94,8 @@ After running `npm run dev`, open the browser and log in using the seeded facult
 - Email: `faculty@demo.com`
 - Password: `Password@123`
 
-You can also log in as a student (seeded accounts are listed in the seed script).
+Or use the seeded student account:
+- Email: `student1@demo.com`
+- Password: `Password@123`
 
 ---
-
-*The current repository includes only the scaffold and Phase‑1 documentation. Phase‑2 (full project initialization) will be started after approval.*

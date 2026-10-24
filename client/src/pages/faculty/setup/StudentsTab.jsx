@@ -1,188 +1,180 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../../api/axiosInstance';
+
+const blankStudent = { name: '', email: '', usn: '', sectionId: '' };
+const starterCsv = 'USN,Name,Email\n1RV26CS005,Emma Watson,emma@demo.com\n1RV26CS006,David Miller,david@demo.com';
+
+function parseCsvRow(line) {
+  const values = [];
+  let value = '';
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"' && quoted && line[index + 1] === '"') {
+      value += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === ',' && !quoted) {
+      values.push(value.trim());
+      value = '';
+    } else {
+      value += char;
+    }
+  }
+  values.push(value.trim());
+  return values;
+}
 
 export const StudentsTab = () => {
   const [students, setStudents] = useState([]);
   const [sections, setSections] = useState([]);
   const [selectedSection, setSelectedSection] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [search, setSearch] = useState('');
 
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [usn, setUsn] = useState('');
-  const [sectionId, setSectionId] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(blankStudent);
   const [saving, setSaving] = useState(false);
 
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [csvText, setCsvText] = useState('USN,Name,Email\n1RV21CS005,Emma Watson,emma@demo.com\n1RV21CS006,David Miller,david@demo.com');
+  const [importOpen, setImportOpen] = useState(false);
+  const [csvText, setCsvText] = useState(starterCsv);
   const [importSectionId, setImportSectionId] = useState('');
   const [importing, setImporting] = useState(false);
 
-  const fetchSections = async () => {
+  async function fetchSections() {
     try {
-      const res = await api.get('/api/sections');
-      const data = res.data.data || [];
-      setSections(data);
-      if (data.length > 0) {
-        setSectionId(data[0].id);
-        setImportSectionId(data[0].id);
-      }
+      const response = await api.get('/api/sections');
+      const items = response.data.data || [];
+      setSections(items);
+      setForm((current) => ({ ...current, sectionId: current.sectionId || String(items[0]?.id || '') }));
+      setImportSectionId((current) => current || String(items[0]?.id || ''));
     } catch (err) {
-      console.error(err);
+      setError(err.response?.data?.message || 'Failed to load sections.');
     }
-  };
+  }
 
-  const fetchStudents = async () => {
+  async function fetchStudents() {
     try {
       setLoading(true);
+      setError('');
       const url = selectedSection ? `/api/students?sectionId=${selectedSection}` : '/api/students';
-      const res = await api.get(url);
-      setStudents(res.data.data || []);
+      const response = await api.get(url);
+      setStudents(response.data.data || []);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch students');
+      setError(err.response?.data?.message || 'Failed to load the student directory.');
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   useEffect(() => { fetchSections(); }, []);
   useEffect(() => { fetchStudents(); }, [selectedSection]);
 
-  const handleAddStudent = async (e) => {
-    e.preventDefault();
+  const filteredStudents = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return term ? students.filter((student) => `${student.usn} ${student.user?.name} ${student.user?.email} ${student.section?.name}`.toLowerCase().includes(term)) : students;
+  }, [students, search]);
+
+  function openForm(student = null) {
+    setFormOpen(true);
+    setEditing(student);
+    setForm(student
+      ? { name: student.user?.name || '', email: student.user?.email || '', usn: student.usn, sectionId: String(student.sectionId) }
+      : { ...blankStudent, sectionId: String(sections[0]?.id || '') });
+    setError('');
+    setNotice('');
+  }
+
+  async function handleStudentSubmit(event) {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
     try {
-      setSaving(true);
-      await api.post('/api/students', { name, email, usn, sectionId: Number(sectionId) });
-      setShowAddModal(false);
-      setName(''); setEmail(''); setUsn('');
-      fetchStudents();
+      const payload = { ...form, name: form.name.trim(), email: form.email.trim(), usn: form.usn.trim().toUpperCase(), sectionId: Number(form.sectionId) };
+      if (editing) await api.put(`/api/students/${editing.id}`, payload);
+      else await api.post('/api/students', payload);
+      setFormOpen(false);
+      setEditing(null);
+      setNotice(editing ? 'Student details updated.' : 'Student added to the roster.');
+      await fetchStudents();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to add student');
+      setError(err.response?.data?.message || 'Could not save this student.');
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const handleImport = async (e) => {
-    e.preventDefault();
-    if (!csvText.trim() || !importSectionId) return;
-    const lines = csvText.trim().split('\n');
-    const parsedList = [];
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      const parts = line.split(',').map((p) => p.trim());
-      if (parts[0].toLowerCase() === 'usn' || parts.length < 3) continue;
-      parsedList.push({ usn: parts[0], name: parts[1], email: parts[2], sectionId: Number(importSectionId) });
-    }
-    if (parsedList.length === 0) return alert('No valid student rows found.');
+  async function deleteStudent(student) {
+    if (!window.confirm(`Remove ${student.user?.name} (${student.usn})? This also deletes their attendance records, marks, and faculty notes.`)) return;
+    setError('');
+    setNotice('');
     try {
-      setImporting(true);
-      const res = await api.post('/api/students/import', { students: parsedList });
-      alert(`Imported ${res.data.data?.inserted ?? 0} students.`);
-      setShowImportModal(false);
-      fetchStudents();
+      await api.delete(`/api/students/${student.id}`);
+      setNotice(`${student.user?.name || 'Student'} removed from the directory.`);
+      await fetchStudents();
     } catch (err) {
-      alert(err.response?.data?.message || 'Import failed');
+      setError(err.response?.data?.message || 'Could not remove this student.');
+    }
+  }
+
+  async function handleImport(event) {
+    event.preventDefault();
+    if (!csvText.trim() || !importSectionId) return;
+    const rows = csvText.split(/\r?\n/).filter((line) => line.trim()).map(parseCsvRow);
+    const parsedStudents = rows
+      .filter((row, index) => !(index === 0 && row[0]?.toLowerCase() === 'usn'))
+      .filter((row) => row.length >= 3 && row.slice(0, 3).every(Boolean))
+      .map(([usn, name, email]) => ({ usn: usn.toUpperCase(), name, email, sectionId: Number(importSectionId) }));
+    if (!parsedStudents.length) {
+      setError('No valid student rows found. Include USN, name, and email for each student.');
+      return;
+    }
+    setImporting(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await api.post('/api/students/import', { students: parsedStudents });
+      const result = response.data.data;
+      const failures = result.errors || [];
+      setNotice(`Imported ${result.inserted} of ${parsedStudents.length} students${failures.length ? ` · ${failures.length} row${failures.length === 1 ? '' : 's'} need attention` : ''}.`);
+      if (failures.length) setError(failures.slice(0, 3).map((item) => item.error).join(' · '));
+      setImportOpen(false);
+      await fetchStudents();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Student import failed.');
     } finally {
       setImporting(false);
     }
-  };
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap justify-between items-center gap-2">
-        <div>
-          <h2 className="text-base font-bold text-gray-800">Student Directory</h2>
-          <p className="text-xs text-gray-500">Manage enrollment and batch imports.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <select value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} className="text-xs border rounded px-2.5 py-1.5 bg-white text-gray-700">
-            <option value="">All Sections</option>
-            {sections.map((s) => (<option key={s.id} value={s.id}>{s.name} ({s.semester})</option>))}
-          </select>
-          <button onClick={() => setShowImportModal(true)} className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded font-medium hover:bg-emerald-700">
-            📥 CSV
-          </button>
-          <button onClick={() => setShowAddModal(true)} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded font-medium hover:bg-blue-700">
-            + Add
-          </button>
-        </div>
-      </div>
+    <div className="management-content">
+      <div className="management-heading"><div><span className="eyebrow">YOUR LEARNER ROSTER</span><h2>Student directory</h2><p>Keep enrollment details current and bring your class list in with CSV.</p></div><div className="management-heading-actions"><button className="button button-secondary" onClick={() => { setImportOpen(true); setError(''); }} disabled={!sections.length}>↑ Import CSV</button><button className="button button-primary" onClick={() => openForm()} disabled={!sections.length}><span>＋</span> Add student</button></div></div>
+      <div className="management-toolbar"><label className="management-search"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by name, email, or USN..." aria-label="Search students" /></label><label className="management-filter"><span>Section</span><select value={selectedSection} onChange={(event) => setSelectedSection(event.target.value)} aria-label="Filter students by section"><option value="">All sections</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.name} · {section.semester}</option>)}</select></label><span className="management-result">{filteredStudents.length} {filteredStudents.length === 1 ? 'student' : 'students'}</span></div>
+      {error && !formOpen && !importOpen && <div className="management-alert management-alert-error" role="alert">{error}<button onClick={fetchStudents}>Refresh list</button></div>}
+      {notice && !formOpen && !importOpen && <div className="management-alert management-alert-success" role="status">{notice}</div>}
+      {loading ? <div className="management-empty"><span className="loading-orbit" />Loading students…</div> : !error && <div className="management-table-wrap"><table className="management-table">
+        <thead><tr><th>Student</th><th>University number</th><th>Section</th><th><span className="sr-only">Actions</span></th></tr></thead>
+        <tbody>{filteredStudents.map((student) => <tr key={student.id}>
+          <td><span className="student-directory-cell"><span className="avatar avatar-lilac">{(student.user?.name || 'S').charAt(0).toUpperCase()}</span><span><strong className="management-primary">{student.user?.name}</strong><small className="management-secondary">{student.user?.email}</small></span></span></td>
+          <td><span className="management-usn">{student.usn}</span></td><td><span className="management-count">{student.section?.name || 'Unassigned'}</span><span className="management-secondary">{student.section?.semester}</span></td>
+          <td><div className="management-actions"><button onClick={() => openForm(student)} aria-label={`Edit ${student.user?.name}`}>Edit</button><button className="management-delete" onClick={() => deleteStudent(student)} aria-label={`Remove ${student.user?.name}`}>Remove</button></div></td>
+        </tr>)}</tbody>
+      </table>{filteredStudents.length === 0 && <div className="management-empty">{students.length ? 'No students match your search.' : 'No students in this directory yet. Add a learner or import your roster.'}</div>}</div>}
 
-      {loading ? (
-        <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
-      ) : error ? (
-        <div className="p-4 bg-red-50 text-red-600 text-sm rounded">{error}</div>
-      ) : (
-        <div className="bg-white rounded-lg border overflow-hidden">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 border-b text-xs text-gray-500 uppercase">
-              <tr>
-                <th className="px-4 py-3">USN</th>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Section</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y text-gray-700">
-              {students.length === 0 ? (
-                <tr><td colSpan="4" className="px-4 py-6 text-center text-gray-400">No students.</td></tr>
-              ) : (
-                students.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50/50">
-                    <td className="px-4 py-3 font-mono text-xs font-semibold text-blue-700">{s.usn}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{s.user?.name}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{s.user?.email}</td>
-                    <td className="px-4 py-3 text-xs">{s.section?.name}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {formOpen && <div className="management-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setFormOpen(false); }}><section className="management-modal" role="dialog" aria-modal="true" aria-labelledby="student-modal-title"><button className="management-modal-close" onClick={() => setFormOpen(false)} disabled={saving} aria-label="Close dialog">×</button><span className="eyebrow">LEARNER ROSTER</span><h3 id="student-modal-title">{editing ? 'Edit student' : 'Add a student'}</h3><p>Student accounts use the demo password until they change it.</p>
+        {error && <div className="management-alert management-alert-error" role="alert">{error}</div>}
+        <form onSubmit={handleStudentSubmit} className="management-form"><label>Full name<input autoFocus value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="e.g. Alex Morgan" maxLength={100} required /></label><label>Email address<input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="alex@university.edu" maxLength={150} required /></label><label>University number (USN)<input value={form.usn} onChange={(event) => setForm({ ...form, usn: event.target.value.toUpperCase() })} placeholder="e.g. 1RV26CS010" maxLength={20} required /></label><label>Section<select value={form.sectionId} onChange={(event) => setForm({ ...form, sectionId: event.target.value })} required><option value="" disabled>Select a section</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.name} · {section.semester}</option>)}</select></label><div className="management-modal-actions"><button type="button" className="button button-secondary" onClick={() => setFormOpen(false)} disabled={saving}>Cancel</button><button type="submit" className="button button-primary" disabled={saving}>{saving ? 'Saving…' : editing ? 'Save changes' : 'Add student'}</button></div></form>
+      </section></div>}
 
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-sm w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-bold text-gray-800">Add Student</h3>
-            <form onSubmit={handleAddStudent} className="space-y-3 text-sm">
-              <input type="text" placeholder="USN (e.g. 1RV21CS010)" value={usn} onChange={(e) => setUsn(e.target.value)} className="w-full border rounded px-3 py-1.5 uppercase font-mono" required />
-              <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} className="w-full border rounded px-3 py-1.5" required />
-              <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full border rounded px-3 py-1.5" required />
-              <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="w-full border rounded px-3 py-1.5" required>
-                {sections.map((sec) => (<option key={sec.id} value={sec.id}>{sec.name} ({sec.semester})</option>))}
-              </select>
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                <button type="submit" disabled={saving} className="px-4 py-1.5 bg-blue-600 text-white rounded font-medium hover:bg-blue-700">{saving ? 'Adding...' : 'Add'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showImportModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-bold text-gray-800">Batch Import Students via CSV</h3>
-            <p className="text-xs text-gray-500">Paste CSV rows with <code>USN,Name,Email</code>.</p>
-            <form onSubmit={handleImport} className="space-y-3 text-sm">
-              <select value={importSectionId} onChange={(e) => setImportSectionId(e.target.value)} className="w-full border rounded px-3 py-1.5" required>
-                {sections.map((sec) => (<option key={sec.id} value={sec.id}>{sec.name} ({sec.semester})</option>))}
-              </select>
-              <textarea rows="5" value={csvText} onChange={(e) => setCsvText(e.target.value)} className="w-full font-mono text-xs border rounded p-2" required />
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowImportModal(false)} className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                <button type="submit" disabled={importing} className="px-4 py-1.5 bg-emerald-600 text-white rounded font-medium hover:bg-emerald-700">{importing ? 'Importing...' : 'Upload'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {importOpen && <div className="management-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !importing) setImportOpen(false); }}><section className="management-modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title"><button className="management-modal-close" onClick={() => setImportOpen(false)} disabled={importing} aria-label="Close dialog">×</button><span className="eyebrow">QUICK ROSTER SETUP</span><h3 id="import-modal-title">Import students</h3><p>Paste CSV rows with the columns <code>USN,Name,Email</code>. Names in quotes may include commas.</p>
+        {error && <div className="management-alert management-alert-error" role="alert">{error}</div>}
+        <form onSubmit={handleImport} className="management-form"><label>Section<select value={importSectionId} onChange={(event) => setImportSectionId(event.target.value)} required><option value="" disabled>Select a section</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.name} · {section.semester}</option>)}</select></label><label>CSV data<textarea rows="7" value={csvText} onChange={(event) => setCsvText(event.target.value)} className="management-csv" spellCheck="false" required /></label><span className="management-form-help">New accounts are created with the demo password. Ask students to update it after their first sign-in.</span><div className="management-modal-actions"><button type="button" className="button button-secondary" onClick={() => setImportOpen(false)} disabled={importing}>Cancel</button><button type="submit" className="button button-primary" disabled={importing || !importSectionId}>{importing ? 'Importing…' : 'Import students'}</button></div></form>
+      </section></div>}
     </div>
   );
 };

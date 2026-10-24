@@ -4,7 +4,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-export const AttendanceDoughnut = ({ present = 80, late = 5, absent = 15 }) => {
+export const AttendanceDoughnut = ({ present = 80, late = 5, absent = 15, showLegend = true }) => {
   const data = {
     labels: ['Present', 'Late', 'Absent'],
     datasets: [
@@ -20,7 +20,7 @@ export const AttendanceDoughnut = ({ present = 80, late = 5, absent = 15 }) => {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'bottom' },
+      legend: { display: showLegend, position: 'bottom' },
     },
   };
 

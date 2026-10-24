@@ -76,6 +76,7 @@ assessmentRouter.put('/:aid/marks', assessmentController.updateAssessmentMarks);
 const meRouter = express.Router();
 meRouter.use(auth, roleGuard('STUDENT'));
 meRouter.get('/dashboard', meController.getStudentDashboard);
+meRouter.post('/assistant', meController.postStudyAssistantMessage);
 
 module.exports = {
   sectionRouter,
@@ -86,4 +87,3 @@ module.exports = {
   assessmentRouter,
   meRouter,
 };
-

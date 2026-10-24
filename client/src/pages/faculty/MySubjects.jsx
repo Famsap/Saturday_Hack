@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axiosInstance';
@@ -9,100 +9,70 @@ export const MySubjects = () => {
   const navigate = useNavigate();
   const [offerings, setOfferings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     api.get('/api/offerings')
-      .then((res) => setOfferings(res.data.data || []))
-      .catch((err) => setError(err.response?.data?.message || 'Failed to load subjects'))
+      .then((response) => setOfferings(response.data.data || []))
+      .catch((err) => setError(err.response?.data?.message || 'Failed to load your subjects.'))
       .finally(() => setLoading(false));
   }, []);
 
-  const totalStudents = offerings.reduce((a, o) => a + (o.section?._count?.students || 0), 0);
-  const totalAtRisk = offerings.reduce((a, o) => a + (o.stats?.atRiskCount || 0), 0);
-  const avgAttendance = offerings.length > 0
-    ? Math.round(offerings.reduce((a, o) => a + (o.stats?.attendanceAvg || 100), 0) / offerings.length)
-    : 100;
+  const totalStudents = offerings.reduce((sum, offering) => sum + (offering.section?._count?.students || 0), 0);
+  const totalAtRisk = offerings.reduce((sum, offering) => sum + (offering.stats?.atRiskCount || 0), 0);
+  const avgAttendance = offerings.length
+    ? Math.round(offerings.reduce((sum, offering) => sum + Number(offering.stats?.attendanceAvg || 0), 0) / offerings.length)
+    : 0;
+
+  function signOut() {
+    logout();
+    navigate('/login');
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800">Faculty Portal</h1>
-          <p className="text-xs text-gray-500">Welcome, {user?.name}</p>
-        </div>
-        <div className="flex gap-4 items-center">
-          <Link to="/faculty/setup" className="text-sm font-medium text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded border border-blue-200">
-            Manage Setup
-          </Link>
-          <button onClick={() => { logout(); navigate('/login'); }} className="text-sm bg-gray-200 px-3 py-1.5 rounded hover:bg-gray-300">
-            Logout
-          </button>
-        </div>
-      </header>
+    <div className="edu-app faculty-app">
+      <aside className="sidebar">
+        <a className="brand-lockup" href="/faculty" onClick={(event) => event.preventDefault()}>
+          <span className="brand-mark">E</span><span>Edu<span className="brand-accent">Sync</span><small>FACULTY PORTAL</small></span>
+        </a>
+        <div className="side-section-label">TEACHING SPACE</div>
+        <nav className="side-nav" aria-label="Faculty navigation">
+          <span className="side-link side-link-active"><span className="side-link-icon">◫</span>Overview</span>
+          <Link className="side-link" to="/faculty/setup"><span className="side-link-icon">▦</span>Term setup</Link>
+        </nav>
+        <div className="sidebar-spacer" />
+        <div className="sidebar-coach faculty-sidebar-tip"><span className="coach-sparkle">✳</span><strong>Every check-in makes a difference.</strong><p>Small, timely interventions help students thrive.</p><Link to="/faculty/setup">Manage your term <span>↗</span></Link></div>
+        <div className="sidebar-profile"><span className="avatar avatar-lilac">{(user?.name || 'F').charAt(0).toUpperCase()}</span><span className="profile-copy"><strong>{user?.name || 'Faculty'}</strong><small>Faculty account</small></span><button className="signout-button" onClick={signOut} aria-label="Sign out" title="Sign out">↗</button></div>
+      </aside>
 
-      <main className="flex-1 p-6 max-w-6xl mx-auto w-full space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <p className="text-xs text-gray-500 font-semibold uppercase">Subjects</p>
-            <p className="text-2xl font-bold text-gray-800 mt-1">{offerings.length}</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <p className="text-xs text-gray-500 font-semibold uppercase">Students</p>
-            <p className="text-2xl font-bold text-gray-800 mt-1">{totalStudents}</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <p className="text-xs text-gray-500 font-semibold uppercase">Avg Attendance</p>
-            <p className={`text-2xl font-bold mt-1 ${avgAttendance < 75 ? 'text-amber-600' : 'text-emerald-600'}`}>{avgAttendance}%</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <p className="text-xs text-gray-500 font-semibold uppercase">At-Risk Count</p>
-            <p className={`text-2xl font-bold mt-1 ${totalAtRisk > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{totalAtRisk}</p>
-          </div>
+      <main className="main-panel">
+        <header className="topbar"><div className="breadcrumb"><span>Workspace</span><b>/</b><strong>Overview</strong></div><div className="topbar-right"><span className="term-chip"><span /> FACULTY VIEW</span><span className="avatar avatar-lilac avatar-small">{(user?.name || 'F').charAt(0).toUpperCase()}</span></div></header>
+        <div className="page-content">
+          <section className="welcome-banner faculty-welcome"><div><span className="eyebrow">TEACHING DASHBOARD</span><h1>Welcome back, {(user?.name || 'Faculty').split(/\s+/)[0]}<span className="wave-mark">✦</span></h1><p>Your classes, student progress, and next steps — all in one place.</p></div><div className="banner-art" aria-hidden="true"><span className="art-sun" /><span className="art-orbit orbit-one" /><span className="art-orbit orbit-two" /><span className="art-star">✳</span><span className="art-dot" /></div><div className="banner-footer"><span>✦</span> A thoughtful learning journey starts with a great class.</div></section>
+          <section className="metrics-grid faculty-metrics">
+            <article className="metric-card"><div className="metric-heading"><span>Active subjects</span><span className="metric-icon icon-purple">▤</span></div><div className="metric-number">{String(offerings.length).padStart(2, '0')}</div><div className="metric-meta"><span className="status-text">Your teaching lineup</span><span>This term</span></div></article>
+            <article className="metric-card"><div className="metric-heading"><span>Students reached</span><span className="metric-icon icon-mint">♧</span></div><div className="metric-number">{String(totalStudents).padStart(2, '0')}</div><div className="metric-meta"><span className="status-text">Across your sections</span><span>Enrolled</span></div></article>
+            <article className="metric-card"><div className="metric-heading"><span>Average attendance</span><span className="metric-icon icon-peach">◉</span></div><div className="metric-number">{avgAttendance}%</div><div className="metric-meta"><span className={avgAttendance < 75 ? 'status-text status-warning' : 'status-text'}>{avgAttendance < 75 ? 'Room for support' : 'Classes are on track'}</span><span>Across subjects</span></div><div className="metric-track"><span className={avgAttendance < 75 ? 'track-warning' : ''} style={{ width: `${Math.min(100, avgAttendance)}%` }} /></div></article>
+            <article className="metric-card"><div className="metric-heading"><span>Students to check in</span><span className="metric-icon icon-yellow">!</span></div><div className="metric-number">{String(totalAtRisk).padStart(2, '0')}</div><div className="metric-meta"><span className={totalAtRisk ? 'status-text status-warning' : 'status-text'}>{totalAtRisk ? 'A timely nudge could help' : 'No urgent flags'}</span><span>At-risk alerts</span></div></article>
+          </section>
+
+          <section className="section-heading faculty-list-heading"><div><span className="eyebrow">YOUR TEACHING SPACE</span><h2>My subjects</h2><p>Open a subject to manage attendance, assessments, and insights.</p></div><Link className="button button-primary" to="/faculty/setup"><span>＋</span> Manage term setup</Link></section>
+
+          {loading ? <div className="surface-card loading-card">Loading your subjects…</div> : error ? <div className="surface-card inline-error">{error}</div> : offerings.length === 0 ? <div className="surface-card empty-panel"><span>▤</span><strong>No subjects assigned yet</strong><p>Set up your sections, subjects, students, and offerings to get started.</p><Link className="button button-primary" to="/faculty/setup">Set up your term <span>→</span></Link></div> : (
+            <section className="faculty-subject-grid">{offerings.map((offering) => {
+              const attendance = Math.round(Number(offering.stats?.attendanceAvg) || 0);
+              const students = offering.section?._count?.students || 0;
+              return <article className="faculty-subject-card" key={offering.id}>
+                <div className="faculty-card-top"><span className="subject-code">{offering.subject?.code}</span><span className="faculty-credits">{offering.subject?.credits} credits</span></div>
+                <h3>{offering.subject?.name}</h3><p className="faculty-section">{offering.section?.name} <span>·</span> {offering.section?.semester}</p>
+                <div className="faculty-card-data"><div><span className="data-label">ATTENDANCE</span><strong className={attendance < 75 ? 'value-warning' : ''}>{attendance}%</strong></div><div><span className="data-label">STUDENTS</span><strong>{students}</strong></div><div><span className="data-label">NEEDS A CHECK-IN</span><strong className={offering.stats?.atRiskCount ? 'value-warning' : ''}>{offering.stats?.atRiskCount || 0}</strong></div></div>
+                <div className="faculty-card-bottom"><span className={`table-status ${offering.stats?.atRiskCount ? 'status-pill-warning' : 'status-pill-good'}`}>{offering.stats?.atRiskCount ? `${offering.stats.atRiskCount} student${offering.stats.atRiskCount === 1 ? '' : 's'} to support` : 'Everyone on track'}</span><Link to={`/faculty/offerings/${offering.id}`}>Open subject <span>→</span></Link></div>
+              </article>;
+            })}</section>
+          )}
+          <section className="coach-strip faculty-action-strip"><span className="coach-strip-icon">✳</span><span><strong>Ready to shape the term?</strong><small>Manage sections, students, subject offerings, and your academic setup.</small></span><Link className="button button-secondary" to="/faculty/setup">Open term setup <span>→</span></Link></section>
         </div>
-
-        <h2 className="text-lg font-semibold text-gray-700">My Assigned Subjects</h2>
-
-        {loading ? (
-          <div className="p-12 text-center text-gray-500">Loading your subjects...</div>
-        ) : error ? (
-          <div className="p-4 bg-red-50 text-red-600 rounded border border-red-200">{error}</div>
-        ) : offerings.length === 0 ? (
-          <div className="bg-white p-8 rounded-lg border text-center">
-            <p className="text-gray-600 mb-4">No subjects assigned yet.</p>
-            <Link to="/faculty/setup" className="bg-blue-600 text-white text-sm px-4 py-2 rounded">Set Up Offerings</Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {offerings.map((o) => {
-              const att = o.stats?.attendanceAvg || 100;
-              const atRisk = o.stats?.atRiskCount || 0;
-              return (
-                <div key={o.id} className="bg-white rounded-lg border shadow-sm p-5 flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-700 rounded">{o.subject?.code}</span>
-                      <span className="text-xs text-gray-400">{o.subject?.credits} Credits</span>
-                    </div>
-                    <h3 className="text-base font-bold text-gray-800">{o.subject?.name}</h3>
-                    <p className="text-xs text-gray-500 mt-1">{o.section?.name} • {o.section?.semester}</p>
-                    <div className="my-4">
-                      <AttendanceDoughnut present={Math.round(att)} late={Math.max(0, Math.round((100 - att) * 0.3))} absent={Math.max(0, Math.round((100 - att) * 0.7))} />
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center border-t pt-3 mt-2 text-xs">
-                    <span className={atRisk > 0 ? 'text-amber-700 font-medium' : 'text-emerald-700 font-medium'}>
-                      {atRisk > 0 ? `⚠ ${atRisk} At-Risk` : '✓ All On Track'}
-                    </span>
-                    <Link to={`/faculty/offerings/${o.id}`} className="font-semibold text-blue-600 hover:underline">Open Hub →</Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </main>
     </div>
   );
 };
-

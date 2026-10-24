@@ -3,6 +3,7 @@ const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { calculateAttendanceStats, calculatePerformanceStats } = require('../services/statsService');
 const { generateStudentAlerts } = require('../services/alertService');
+const { askStudyAssistant } = require('../services/assistantService');
 
 const getStudentDashboard = asyncHandler(async (req, res) => {
   const student = await prisma.student.findUnique({
@@ -30,6 +31,9 @@ const getStudentDashboard = asyncHandler(async (req, res) => {
 
   let totalLockedAll = 0;
   let totalAttendedAll = 0;
+  let totalPresentAll = 0;
+  let totalLateAll = 0;
+  let totalAbsentAll = 0;
   let totalMarksObtainedAll = 0;
   let totalMaxMarksAll = 0;
 
@@ -51,6 +55,9 @@ const getStudentDashboard = asyncHandler(async (req, res) => {
 
     const attStats = calculateAttendanceStats(attRecords, lockedCount);
     totalAttendedAll += attStats.attendedCount;
+    totalPresentAll += attStats.presentCount;
+    totalLateAll += attStats.lateCount;
+    totalAbsentAll += attStats.absentCount;
 
     // Marks in this offering
     const marksRecords = await prisma.marks.findMany({
@@ -132,6 +139,11 @@ const getStudentDashboard = asyncHandler(async (req, res) => {
         performancePct: overallPerformancePct,
         totalSessions: totalLockedAll,
         attendedSessions: totalAttendedAll,
+        attendanceByStatus: {
+          present: totalPresentAll,
+          late: totalLateAll,
+          absent: totalAbsentAll,
+        },
       },
       subjects: subjectStats,
       alerts: allAlerts,
@@ -140,6 +152,17 @@ const getStudentDashboard = asyncHandler(async (req, res) => {
   });
 });
 
+const postStudyAssistantMessage = asyncHandler(async (req, res) => {
+  const result = await askStudyAssistant({
+    userId: req.user.id,
+    message: req.body.message,
+    shareProgress: req.body.shareProgress,
+  });
+
+  res.status(200).json({ success: true, data: result });
+});
+
 module.exports = {
   getStudentDashboard,
+  postStudyAssistantMessage,
 };
